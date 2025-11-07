@@ -1,0 +1,13 @@
+services:
+  app:
+    build: .
+    container_name: app
+    environment:
+      - PYTHONPATH=$PYTHONPATH:/app
+    volumes:
+      - ./database.db:/app/database.db
+    command: streamlit run src/text_searcher/main.py --server.address 0.0.0.0
+    ports:
+      - 8501:8501
+    networks:
+      - default
