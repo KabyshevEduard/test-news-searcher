@@ -24,7 +24,7 @@ class SearchService:
         try:
             self.faiss_index = faiss.read_index('news.index')
         except Exception as e:
-            embeddings_all = self._get_all()
+            embeddings_all = self._get_from_db('SELECT embeddings FROM news')
             embeddings_all_to_index = np.array([
                 json.loads(emb[0]) for emb in embeddings_all
             ], dtype=np.float32)
@@ -43,23 +43,18 @@ class SearchService:
         query_embedding = np.expand_dims(query_embedding, axis=0)
         logging.info(f'Query: {query}, embedding shape: {query_embedding.shape}')
 
-
-        docs = self._get_all(columns=columns)
-
         if self.faiss_index is None:
             logging.error('FAISS indexes were not created')
             raise Exception('There is no faiss index')
 
         distances, indices = self.faiss_index.search(query_embedding, top_n)
-        results = [docs[idx] for idx in indices[0] if idx < len(docs)]
+        indices = str([idx for idx in indices[0]])
+        indices = indices[1:-1]
+        results = self._get_from_db(f'SELECT summary, url FROM news where id in ({indices})')
         return results
 
-    def _get_all(self, columns=None):
+    def _get_from_db(self, sql_query: str):
         cursor = self.conn.cursor()
-        sql_columns = columns if columns is not None else 'embeddings'
-        if isinstance(columns, tuple) or isinstance(columns, list):
-            sql_columns = ', '.join(sql_columns)
-        sql_query = f'SELECT {sql_columns} FROM news'
         cursor.execute(sql_query)
-        embeddings_all = cursor.fetchall()
-        return embeddings_all
+        fetch_all = cursor.fetchall()
+        return fetch_all
